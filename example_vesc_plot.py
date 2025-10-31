@@ -2,7 +2,7 @@
 Example: How to plot speed vs time with GPS coordinates from VESC data
 """
 
-from solar import calculate_speeds, plot_speed_vs_time, plot_with_coordinates
+from solar_regatta import calculate_speeds, plot_speed_vs_time, plot_with_coordinates
 from datetime import datetime, timedelta
 
 # Example 1: Using MGRS coordinates with timestamps
