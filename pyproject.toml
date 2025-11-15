@@ -45,6 +45,17 @@ Source = "https://github.com/pixelclubsf/Real-Time-Telemetry-Example"
 vesc = [
     "pyserial>=3.5",
 ]
+ml-advanced = [
+    "scikit-learn>=1.3.0",
+    "xgboost>=2.0.0",
+    "lightgbm>=4.0.0",
+]
+all = [
+    "pyserial>=3.5",
+    "scikit-learn>=1.3.0",
+    "xgboost>=2.0.0",
+    "lightgbm>=4.0.0",
+]
 
 [project.scripts]
 solar-regatta = "solar_regatta.cli:main"
