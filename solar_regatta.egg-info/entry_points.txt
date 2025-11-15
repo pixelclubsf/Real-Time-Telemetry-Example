@@ -1,2 +1,0 @@
-[console_scripts]
-solar-regatta = solar_regatta.web.app:app
