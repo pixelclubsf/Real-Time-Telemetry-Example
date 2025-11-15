@@ -40,4 +40,4 @@ jobs:
         solar-regatta --duration 60 --interval 5
     - name: Test example script
       run: |
-        python example_vesc_plot.py
+        python example_vesc_plot.py --no-save-plots
