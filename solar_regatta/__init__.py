@@ -2,6 +2,7 @@
 Solar Regatta Telemetry Analysis Package
 
 Modern tools for analyzing and modeling solar boat race telemetry data.
+Includes VESC motor controller integration for real-time data collection.
 """
 
 __version__ = "0.1.0"
