@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "solar-regatta"
 version = "0.1.0"
 description = "A Python package for analyzing and visualizing solar boat race telemetry data"
-readme = "QUICKSTART.md"
+readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
@@ -29,11 +29,10 @@ classifiers = [
 ]
 
 dependencies = [
-    "Flask==3.0.0",
-    "plotly==5.17.0",
-    "matplotlib==3.8.0",
-    "numpy==1.24.3",
-    "mgrs==1.4.6",
+    "plotly>=5.17.0",
+    "matplotlib>=3.8.0",
+    "numpy>=1.24.3",
+    "mgrs>=1.4.6",
 ]
 
 [project.urls]
@@ -42,15 +41,11 @@ Homepage = "https://github.com/pixelclubsf/Real-Time-Telemetry-Example"
 Source = "https://github.com/pixelclubsf/Real-Time-Telemetry-Example"
 
 [project.scripts]
-solar-regatta = "solar_regatta.web.app:app"
+solar-regatta = "solar_regatta.cli:main"
 
 [tool.setuptools]
-packages = ["solar_regatta", "solar_regatta.core", "solar_regatta.web"]
+packages = ["solar_regatta", "solar_regatta.core", "solar_regatta.ml", "solar_regatta.viz"]
 include-package-data = true
 
 [tool.setuptools.package-data]
-solar_regatta = [
-    "templates/*.html",
-    "static/css/*.css",
-    "static/js/*.js",
-]
+solar_regatta = []
