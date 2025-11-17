@@ -3,6 +3,8 @@
 Solar Regatta - Comprehensive Dashboard
 Multi-tab Gradio interface for VESC data collection, model training, inference, and analysis.
 Deployed on Hugging Face Spaces.
+
+This is the main entry point for the Hugging Face Space.
 """
 
 import gradio as gr
