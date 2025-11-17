@@ -6,6 +6,7 @@ colorTo: blue
 sdk: gradio
 sdk_version: 4.32.0
 app_file: app.py
+suggested_hardware: cpu-basic
 pinned: false
 license: mit
 ---
