@@ -1,3 +1,14 @@
+---
+title: Solar Regatta Dashboard
+emoji: 🚤
+colorFrom: purple
+colorTo: blue
+sdk: gradio
+sdk_version: 4.0.0
+app_file: app.py
+pinned: false
+---
+
 # Solar Regatta - Real-Time Telemetry Analysis
 
 A comprehensive Python package for analyzing, modeling, and visualizing solar boat race telemetry data. Features machine-learning friendly helpers, interactive dashboards for notebooks, real-time performance metrics, GPS tracking, and VESC motor controller analysis.
