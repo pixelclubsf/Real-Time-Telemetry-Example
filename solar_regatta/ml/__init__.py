@@ -32,6 +32,13 @@ from .anomaly import (
     detect_gps_anomalies,
 )
 
+# Model inspection
+from .model_info import (
+    count_model_parameters,
+    print_parameter_table,
+    get_model_summary,
+)
+
 # Tree-based models (optional imports)
 try:
     from .tree_models import (
@@ -65,6 +72,10 @@ __all__ = [
     "detect_voltage_anomalies",
     "detect_current_spikes",
     "detect_gps_anomalies",
+    # Model inspection
+    "count_model_parameters",
+    "print_parameter_table",
+    "get_model_summary",
 ]
 
 # Add tree models if available
