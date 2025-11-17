@@ -37,8 +37,8 @@ A comprehensive Python package for analyzing, modeling, and visualizing solar bo
 
 **Option 1: Install from GitHub**
 ```bash
-git clone https://github.com/pixelclubsf/Real-Time-Telemetry-Example.git
-cd Real-Time-Telemetry-Example
+git clone https://github.com/charlieijk/SolarRegetta.git
+cd SolarRegetta
 pip install -e .
 ```
 
@@ -271,10 +271,12 @@ Solar Regatta
 ## Requirements
 
 - Python 3.8 or higher
+- Gradio 4.0.0+ (for interactive model parameter inspector)
 - Plotly 5.17.0
 - Matplotlib 3.8.0
 - NumPy 1.24.3
 - MGRS 1.4.6
+- Pillow 10.0.0+ (for image handling)
 
 All dependencies are installed automatically with `pip install -e .`.
 
@@ -298,25 +300,28 @@ pip install -e .
 ## Project Structure
 
 ```
-Real-Time-Telemetry-Example/
+SolarRegatta/
 ├── README.md
 ├── requirements.txt
 ├── setup.py
 ├── pyproject.toml
 ├── example_vesc_plot.py            # Matplotlib example
 ├── solar.py                        # Stand-alone analysis script
-├── notebooks/                      # Interactive workflows
+├── notebooks/                      # Interactive Jupyter workflows
 │   ├── Solar_Regatta_Quickstart.ipynb
-│   └── Solar_Regatta_Plotly_Dashboard.ipynb
-└── solar_regatta/                  # Installable package
-    ├── __init__.py
-    ├── cli.py                      # Command-line entry point
-    ├── core/
-    │   └── analysis.py
-    ├── ml/
-    │   └── models.py
-    └── viz/
-        └── plotly_charts.py
+│   ├── Solar_Regatta_Plotly_Dashboard.ipynb
+│   └── Model_Parameter_Inspector.ipynb  # Gradio-based parameter inspector
+├── solar_regatta/                  # Installable package
+│   ├── __init__.py
+│   ├── cli.py                      # Command-line entry point
+│   ├── gradio_app.py               # Gradio model inspector app
+│   ├── core/
+│   │   └── analysis.py
+│   ├── ml/
+│   │   └── models.py
+│   └── viz/
+│       └── plotly_charts.py
+└── docs/                           # Documentation and assets
 ```
 
 ## Usage Examples
@@ -394,7 +399,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Support
 
 For issues, questions, or suggestions:
-- GitHub Issues: [Open an issue](https://github.com/pixelclubsf/Real-Time-Telemetry-Example/issues)
+- GitHub Issues: [Open an issue](https://github.com/charlieijk/SolarRegetta/issues)
 - Documentation: See [FLASK_README.md](FLASK_README.md) for detailed feature docs
 
 ## Project Status
