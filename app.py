@@ -7,12 +7,19 @@ Deployed on Hugging Face Spaces.
 This is the main entry point for the Hugging Face Space.
 """
 
+import sys
+from pathlib import Path
+
+# Add current directory to Python path to find local solar_regatta module
+current_dir = Path(__file__).parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
+
 import gradio as gr
 import numpy as np
 import json
 import io
 from datetime import datetime
-from pathlib import Path
 import matplotlib.pyplot as plt
 from PIL import Image
 
