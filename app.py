@@ -74,6 +74,25 @@ try:
 except Exception:
     VESC_AVAILABLE = False
 
+try:
+    from solar_regatta.ml.world_model import (
+        create_default_world_model,
+        simulate_race,
+        BoatState,
+        PhysicsParameters
+    )
+    from solar_regatta.viz.world_model_viz import (
+        plot_trajectory_2d,
+        plot_state_evolution,
+        plot_strategy_comparison,
+        plot_uncertainty_bands,
+        create_control_visualization
+    )
+    WORLD_MODEL_AVAILABLE = True
+except Exception as e:
+    print(f"Warning: World model not available: {e}")
+    WORLD_MODEL_AVAILABLE = False
+
 
 # ============================================================================
 # HELPER FUNCTIONS
@@ -785,7 +804,212 @@ with gr.Blocks(
             )
 
         # ====================================================================
-        # TAB 5: ABOUT
+        # TAB 5: WORLD MODEL SIMULATOR
+        # ====================================================================
+        if WORLD_MODEL_AVAILABLE:
+            with gr.Tab("🌍 World Model"):
+                gr.Markdown("## Physics-Based World Model & Race Simulation")
+                gr.Markdown("""
+                Advanced predictive model that simulates boat physics, energy dynamics,
+                and optimal racing strategies. Uses real physical models of drag, propulsion,
+                battery dynamics, and solar power generation.
+                """)
+
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        gr.Markdown("### Race Configuration")
+
+                        race_distance = gr.Slider(
+                            minimum=100,
+                            maximum=2000,
+                            value=500,
+                            step=50,
+                            label="Race Distance (m)"
+                        )
+
+                        sun_condition = gr.Dropdown(
+                            choices=["Full Sun", "Partly Cloudy", "Variable", "Cloudy"],
+                            value="Full Sun",
+                            label="Sun Conditions"
+                        )
+
+                        strategies_to_compare = gr.CheckboxGroup(
+                            choices=["optimal", "aggressive", "conservative"],
+                            value=["optimal", "aggressive"],
+                            label="Strategies to Compare"
+                        )
+
+                        simulate_btn = gr.Button("🚀 Run Simulation", variant="primary", size="lg")
+
+                    with gr.Column(scale=1):
+                        gr.Markdown("### Simulation Settings")
+
+                        boat_mass = gr.Slider(
+                            minimum=30,
+                            maximum=80,
+                            value=50,
+                            step=5,
+                            label="Boat Mass (kg)"
+                        )
+
+                        battery_capacity = gr.Slider(
+                            minimum=50,
+                            maximum=200,
+                            value=100,
+                            step=10,
+                            label="Battery Capacity (Wh)"
+                        )
+
+                        solar_area = gr.Slider(
+                            minimum=0.3,
+                            maximum=1.0,
+                            value=0.5,
+                            step=0.1,
+                            label="Solar Panel Area (m²)"
+                        )
+
+                        enable_uncertainty = gr.Checkbox(
+                            label="Show Uncertainty Estimates (slower)",
+                            value=False
+                        )
+
+                gr.Markdown("### Simulation Results")
+
+                with gr.Row():
+                    trajectory_plot = gr.Image(label="Race Trajectories")
+                    state_evolution_plot = gr.Image(label="State Evolution")
+
+                with gr.Row():
+                    strategy_comparison_plot = gr.Image(label="Strategy Comparison")
+                    uncertainty_plot = gr.Image(label="Prediction Uncertainty")
+
+                with gr.Row():
+                    metrics_output = gr.Markdown()
+
+                # Connect world model simulation
+                def run_world_model_simulation(distance, sun_cond, strategies,
+                                             mass, capacity, area, uncertainty):
+                    try:
+                        # Create sun profile based on conditions
+                        duration = 600
+                        if sun_cond == "Full Sun":
+                            sun_profile = [1000.0] * duration
+                        elif sun_cond == "Cloudy":
+                            sun_profile = [300.0] * duration
+                        elif sun_cond == "Partly Cloudy":
+                            sun_profile = [600.0] * duration
+                        else:  # Variable
+                            sun_profile = [1000.0 - 400 * np.sin(t * 0.05) for t in range(duration)]
+
+                        # Create custom world model
+                        params = PhysicsParameters(
+                            mass=mass,
+                            battery_capacity=capacity,
+                            solar_panel_area=area
+                        )
+                        world_model = create_default_world_model()
+                        world_model.params = params
+                        world_model.dynamics.params = params
+
+                        # Run simulations for each strategy
+                        trajectories_dict = {}
+                        metrics_dict = {}
+
+                        for strategy in strategies:
+                            traj, metrics = simulate_race(
+                                world_model, distance, sun_profile, strategy
+                            )
+                            trajectories_dict[strategy] = traj
+                            metrics_dict[strategy] = metrics
+
+                        # Create visualizations
+                        traj_plot = plot_trajectory_2d(
+                            list(trajectories_dict.values()),
+                            labels=list(trajectories_dict.keys()),
+                            title=f"{distance}m Race - Trajectory Comparison"
+                        )
+
+                        # Pick first strategy for detailed evolution
+                        first_strategy = strategies[0]
+                        evolution_plot = plot_state_evolution(
+                            trajectories_dict[first_strategy],
+                            title=f"State Evolution - {first_strategy.title()} Strategy"
+                        )
+
+                        comparison_plot = plot_strategy_comparison(
+                            trajectories_dict,
+                            metrics_dict,
+                            title="Strategy Performance Comparison"
+                        )
+
+                        # Uncertainty analysis if enabled
+                        if uncertainty and len(strategies) > 0:
+                            # Run uncertainty prediction for first strategy
+                            initial_state = BoatState(
+                                time=0.0,
+                                position=np.array([0.0, 0.0]),
+                                velocity=0.0,
+                                heading=0.0,
+                                battery_voltage=13.0,
+                                battery_soc=1.0,
+                                motor_current=0.0,
+                                solar_power=0.0
+                            )
+
+                            # Create simple control sequence
+                            control_seq = [(5.0, sun_profile[min(i, len(sun_profile)-1)])
+                                         for i in range(min(300, len(sun_profile)))]
+
+                            mean_traj, uncertainties = world_model.predict_with_uncertainty(
+                                initial_state, control_seq, n_samples=50, dt=1.0
+                            )
+
+                            unc_plot = plot_uncertainty_bands(
+                                mean_traj, uncertainties,
+                                title="Prediction Uncertainty (Monte Carlo)"
+                            )
+                        else:
+                            unc_plot = None
+
+                        # Format metrics
+                        metrics_md = f"""
+                        ### Performance Summary
+
+                        | Strategy | Distance (m) | Time (s) | Avg Speed (m/s) | Energy Used (Wh) | Efficiency (m/Wh) | Final SOC (%) |
+                        |----------|-------------|----------|----------------|-----------------|------------------|---------------|
+                        """
+
+                        for strategy in strategies:
+                            m = metrics_dict[strategy]
+                            metrics_md += f"| {strategy.title()} | {m['total_distance']:.1f} | {m['total_time']:.1f} | {m['avg_velocity']:.2f} | {m['energy_used_wh']:.1f} | {m['efficiency_m_per_wh']:.2f} | {m['final_soc']*100:.1f} |\n"
+
+                        metrics_md += f"""
+
+                        **Race Configuration:**
+                        - Distance: {distance}m
+                        - Sun Conditions: {sun_cond}
+                        - Boat Mass: {mass}kg
+                        - Battery: {capacity}Wh
+                        - Solar Panel: {area}m²
+                        """
+
+                        return traj_plot, evolution_plot, comparison_plot, unc_plot, metrics_md
+
+                    except Exception as e:
+                        import traceback
+                        error_msg = f"Error running simulation: {str(e)}\n{traceback.format_exc()}"
+                        return None, None, None, None, error_msg
+
+                simulate_btn.click(
+                    fn=run_world_model_simulation,
+                    inputs=[race_distance, sun_condition, strategies_to_compare,
+                           boat_mass, battery_capacity, solar_area, enable_uncertainty],
+                    outputs=[trajectory_plot, state_evolution_plot,
+                            strategy_comparison_plot, uncertainty_plot, metrics_output]
+                )
+
+        # ====================================================================
+        # TAB 6: ABOUT
         # ====================================================================
         with gr.Tab("ℹ️ About"):
             gr.Markdown("""

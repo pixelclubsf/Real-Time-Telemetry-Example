@@ -32,6 +32,14 @@ A comprehensive Python package for analyzing, modeling, and visualizing solar bo
 - Motor current analysis and efficiency metrics
 - Comprehensive performance statistics
 
+🌍 **Advanced World Model** ⭐ NEW
+- Physics-based simulation of boat dynamics
+- Predictive trajectory forecasting with uncertainty estimation
+- Optimal control strategy optimization
+- Energy management and race planning
+- Multiple boat configuration comparison
+- Monte Carlo uncertainty quantification
+
 🌐 **Interactive Visualizations**
 - Plotly helpers that render directly in notebooks
 - Works offline—perfect for quick experimentation
@@ -261,6 +269,45 @@ The notebooks and CLI provide:
 - **Model Training** – Quickly fit linear regression models that predict future speeds from voltage/current/elapsed time and export the coefficients as JSON.
 - **Data Export** – Save predicted speed curves for downstream use.
 
+## World Model - Physics-Based Simulation
+
+The Solar Regatta package now includes an advanced **world model** that simulates the complete physics of solar boat racing. This goes far beyond simple regression - it models real physical dynamics.
+
+### What Can It Do?
+
+```python
+from solar_regatta.ml.world_model import create_default_world_model, simulate_race
+import numpy as np
+
+# Create physics-based world model
+world_model = create_default_world_model()
+
+# Simulate a 500m race under full sun conditions
+sun_profile = [1000.0] * 600  # W/m² for 10 minutes
+trajectory, metrics = simulate_race(
+    world_model,
+    race_distance=500.0,
+    sun_profile=sun_profile,
+    strategy='optimal'  # Automatically optimizes energy management
+)
+
+print(f"Race completed in {metrics['total_time']:.1f}s")
+print(f"Average speed: {metrics['avg_velocity']:.2f} m/s")
+print(f"Energy efficiency: {metrics['efficiency_m_per_wh']:.2f} m/Wh")
+print(f"Final battery: {metrics['final_soc']*100:.1f}%")
+```
+
+### Key Capabilities
+
+- **Physics Simulation**: Models drag, thrust, battery dynamics, solar power
+- **Trajectory Prediction**: Forecast boat state seconds to minutes ahead
+- **Uncertainty Estimation**: Monte Carlo simulation with confidence intervals
+- **Strategy Optimization**: Find optimal motor current profiles
+- **Design Comparison**: Test different boat configurations
+- **Adaptive Learning**: Fit corrections from real telemetry data
+
+See [WORLD_MODEL.md](WORLD_MODEL.md) for complete documentation and [examples/world_model_demo.py](examples/world_model_demo.py) for demonstrations.
+
 ## Architecture
 
 ```
@@ -273,9 +320,15 @@ Solar Regatta
 ├── ML utilities (solar_regatta/ml)
 │   ├── Feature preparation
 │   ├── Linear regression helpers
+│   ├── World Model (physics-based simulation) ⭐ NEW
+│   │   ├── Boat dynamics modeling
+│   │   ├── Trajectory prediction
+│   │   ├── Uncertainty quantification
+│   │   └── Control optimization
 │   └── Evaluation helpers
 ├── Plotly visuals (solar_regatta/viz)
-│   └── Notebook-friendly chart builders
+│   ├── Notebook-friendly chart builders
+│   └── World model visualizations ⭐ NEW
 └── Notebooks & CLI
     ├── Example notebooks in /notebooks
     └── `solar-regatta` command for quick experiments

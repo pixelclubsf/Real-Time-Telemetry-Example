@@ -39,6 +39,21 @@ from .model_info import (
     get_model_summary,
 )
 
+# World model (physics-based simulation)
+try:
+    from .world_model import (
+        WorldModel,
+        BoatState,
+        PhysicsParameters,
+        BoatDynamicsModel,
+        create_default_world_model,
+        simulate_race,
+    )
+    WORLD_MODEL_AVAILABLE = True
+except (ImportError, Exception) as e:
+    WORLD_MODEL_AVAILABLE = False
+    # print(f"World model not available: {e}")
+
 # Tree-based models (optional imports)
 try:
     from .tree_models import (
@@ -79,6 +94,17 @@ __all__ = [
     "print_parameter_table",
     "get_model_summary",
 ]
+
+# Add world model if available
+if WORLD_MODEL_AVAILABLE:
+    __all__.extend([
+        "WorldModel",
+        "BoatState",
+        "PhysicsParameters",
+        "BoatDynamicsModel",
+        "create_default_world_model",
+        "simulate_race",
+    ])
 
 # Add tree models if available
 if TREE_MODELS_AVAILABLE:
