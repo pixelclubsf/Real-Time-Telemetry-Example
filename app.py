@@ -618,7 +618,7 @@ def disconnect_hardware():
 
 def start_recording(session_name, location, conditions):
     """Start recording telemetry data."""
-    global live_collector, live_data_buffer
+    global live_data_buffer
 
     if not live_collector or not live_collector.is_connected():
         return "Not connected to hardware!", "Stopped"
@@ -643,8 +643,6 @@ def start_recording(session_name, location, conditions):
 
 def stop_recording():
     """Stop recording and return summary."""
-    global live_collector
-
     if not live_collector:
         return "No active recording", "Stopped", ""
 
@@ -670,8 +668,6 @@ def stop_recording():
 
 def save_session(filename):
     """Save current session to file."""
-    global live_collector
-
     if not live_collector or not live_collector.current_session:
         return "No session to save"
 
@@ -685,7 +681,7 @@ def save_session(filename):
 
 def get_live_telemetry():
     """Get current telemetry reading for live display."""
-    global live_collector, live_gps, live_data_buffer
+    global live_data_buffer
 
     if not live_collector or not live_collector.is_connected():
         return "---", "---", "---", "---", "---", "---", None, None
@@ -781,8 +777,6 @@ def get_live_telemetry():
 
 def run_system_identification():
     """Run system identification on collected data."""
-    global live_collector
-
     if not live_collector or not live_collector.telemetry_data:
         return "No telemetry data available. Record some data first!", None
 
