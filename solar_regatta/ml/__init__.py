@@ -54,6 +54,20 @@ except (ImportError, Exception) as e:
     WORLD_MODEL_AVAILABLE = False
     # print(f"World model not available: {e}")
 
+# System identification (parameter estimation from real data)
+try:
+    from .system_id import (
+        SystemIdentifier,
+        BoatParameters,
+        TelemetrySegment,
+        calibrate_world_model,
+        identify_from_session,
+    )
+    SYSTEM_ID_AVAILABLE = True
+except (ImportError, Exception) as e:
+    SYSTEM_ID_AVAILABLE = False
+    # print(f"System ID not available: {e}")
+
 # Tree-based models (optional imports)
 try:
     from .tree_models import (
@@ -104,6 +118,16 @@ if WORLD_MODEL_AVAILABLE:
         "BoatDynamicsModel",
         "create_default_world_model",
         "simulate_race",
+    ])
+
+# Add system ID if available
+if SYSTEM_ID_AVAILABLE:
+    __all__.extend([
+        "SystemIdentifier",
+        "BoatParameters",
+        "TelemetrySegment",
+        "calibrate_world_model",
+        "identify_from_session",
     ])
 
 # Add tree models if available

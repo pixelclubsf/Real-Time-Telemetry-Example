@@ -69,10 +69,16 @@ except Exception:
     XGBOOST_AVAILABLE = False
 
 try:
-    from solar_regatta.vesc import VESCDataCollector
+    from solar_regatta.vesc import VESCDataCollector, GPSReader, VESCTelemetryPoint
     VESC_AVAILABLE = True
 except Exception:
     VESC_AVAILABLE = False
+
+try:
+    from solar_regatta.ml.system_id import SystemIdentifier, BoatParameters, calibrate_world_model
+    SYSTEM_ID_AVAILABLE = True
+except Exception:
+    SYSTEM_ID_AVAILABLE = False
 
 try:
     from solar_regatta.ml.world_model import (
@@ -92,6 +98,31 @@ try:
 except Exception as e:
     print(f"Warning: World model not available: {e}")
     WORLD_MODEL_AVAILABLE = False
+
+
+# ============================================================================
+# GLOBAL STATE FOR LIVE TELEMETRY
+# ============================================================================
+
+# Global collector instance for live telemetry
+live_collector = None
+live_gps = None
+live_data_buffer = []
+MAX_BUFFER_SIZE = 500
+
+def get_available_ports():
+    """Get list of available serial ports."""
+    if VESC_AVAILABLE:
+        ports = VESCDataCollector.list_ports()
+        return [p['device'] for p in ports] if ports else ["No ports found"]
+    return ["VESC module not available"]
+
+def get_gps_ports():
+    """Get list of available GPS ports."""
+    if VESC_AVAILABLE:
+        ports = GPSReader.list_ports()
+        return ports if ports else ["No GPS ports found"]
+    return ["GPS module not available"]
 
 
 # ============================================================================
@@ -525,6 +556,296 @@ def analyze_uploaded_data(file):
 
 
 # ============================================================================
+# TAB: LIVE TELEMETRY
+# ============================================================================
+
+def connect_hardware(vesc_port, gps_port, use_simulation):
+    """Connect to VESC and GPS hardware."""
+    global live_collector, live_gps, live_data_buffer
+
+    try:
+        live_data_buffer = []
+
+        # Create VESC collector
+        live_collector = VESCDataCollector(
+            port=vesc_port,
+            simulate=use_simulation
+        )
+
+        if not live_collector.connect():
+            return "Failed to connect to VESC", "Disconnected"
+
+        # Create GPS reader if port specified
+        if gps_port and gps_port != "None" and not use_simulation:
+            live_gps = GPSReader(port=gps_port, simulate=False)
+            live_gps.connect()
+            live_gps.start()
+            gps_status = f"GPS connected on {gps_port}"
+        elif use_simulation:
+            live_gps = GPSReader(simulate=True)
+            live_gps.connect()
+            live_gps.start()
+            gps_status = "GPS simulation active"
+        else:
+            live_gps = None
+            gps_status = "No GPS"
+
+        mode = "SIMULATION" if use_simulation else "HARDWARE"
+        return f"Connected ({mode}) - VESC: {vesc_port}, {gps_status}", "Connected"
+
+    except Exception as e:
+        return f"Connection error: {str(e)}", "Error"
+
+
+def disconnect_hardware():
+    """Disconnect from hardware."""
+    global live_collector, live_gps
+
+    try:
+        if live_collector:
+            live_collector.disconnect()
+            live_collector = None
+
+        if live_gps:
+            live_gps.stop()
+            live_gps.disconnect()
+            live_gps = None
+
+        return "Disconnected", "Disconnected"
+    except Exception as e:
+        return f"Disconnect error: {str(e)}", "Error"
+
+
+def start_recording(session_name, location, conditions):
+    """Start recording telemetry data."""
+    global live_collector, live_data_buffer
+
+    if not live_collector or not live_collector.is_connected():
+        return "Not connected to hardware!", "Stopped"
+
+    try:
+        live_data_buffer = []
+        session_id = session_name or datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        live_collector.start_collection(
+            duration=None,  # Continuous
+            interval=0.5,
+            session_id=session_id,
+            location=location,
+            conditions=conditions,
+            threaded=True
+        )
+
+        return f"Recording started: {session_id}", "Recording"
+    except Exception as e:
+        return f"Start error: {str(e)}", "Error"
+
+
+def stop_recording():
+    """Stop recording and return summary."""
+    global live_collector
+
+    if not live_collector:
+        return "No active recording", "Stopped", ""
+
+    try:
+        live_collector.stop_collection()
+        data = live_collector.get_data()
+
+        if data:
+            summary = f"""### Recording Summary
+- **Points Collected:** {len(data)}
+- **Duration:** {(data[-1].timestamp - data[0].timestamp).total_seconds():.1f}s
+- **Avg Voltage:** {sum(p.battery_voltage for p in data) / len(data):.2f}V
+- **Max Current:** {max(p.motor_current for p in data):.2f}A
+- **Avg Speed:** {sum(p.speed_gps for p in data) / len(data):.2f} m/s
+"""
+        else:
+            summary = "No data collected"
+
+        return "Recording stopped", "Stopped", summary
+    except Exception as e:
+        return f"Stop error: {str(e)}", "Error", ""
+
+
+def save_session(filename):
+    """Save current session to file."""
+    global live_collector
+
+    if not live_collector or not live_collector.current_session:
+        return "No session to save"
+
+    try:
+        filepath = filename or f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        live_collector.save_session(filepath)
+        return f"Session saved to {filepath}"
+    except Exception as e:
+        return f"Save error: {str(e)}"
+
+
+def get_live_telemetry():
+    """Get current telemetry reading for live display."""
+    global live_collector, live_gps, live_data_buffer
+
+    if not live_collector or not live_collector.is_connected():
+        return "---", "---", "---", "---", "---", "---", None, None
+
+    try:
+        # Get GPS data if available
+        gps_position = ""
+        speed_gps = 0.0
+        if live_gps:
+            fix = live_gps.get_current_fix()
+            if fix:
+                gps_position = fix.mgrs_position
+                speed_gps = fix.speed
+
+        # Read telemetry
+        point = live_collector.read_telemetry_point(gps_position, speed_gps)
+
+        if not point:
+            return "---", "---", "---", "---", "---", "---", None, None
+
+        # Add to buffer for charts
+        live_data_buffer.append(point)
+        if len(live_data_buffer) > MAX_BUFFER_SIZE:
+            live_data_buffer = live_data_buffer[-MAX_BUFFER_SIZE:]
+
+        # Create live charts
+        if len(live_data_buffer) > 1:
+            times = [(p.timestamp - live_data_buffer[0].timestamp).total_seconds()
+                    for p in live_data_buffer]
+            voltages = [p.battery_voltage for p in live_data_buffer]
+            currents = [p.motor_current for p in live_data_buffer]
+            speeds = [p.speed_gps for p in live_data_buffer]
+            powers = [p.power_in or (p.battery_voltage * p.motor_current)
+                     for p in live_data_buffer]
+
+            # Voltage/Current chart
+            import plotly.graph_objects as go
+            from plotly.subplots import make_subplots
+
+            fig1 = make_subplots(specs=[[{"secondary_y": True}]])
+            fig1.add_trace(
+                go.Scatter(x=times, y=voltages, name="Voltage", line=dict(color="blue")),
+                secondary_y=False
+            )
+            fig1.add_trace(
+                go.Scatter(x=times, y=currents, name="Current", line=dict(color="red")),
+                secondary_y=True
+            )
+            fig1.update_layout(
+                title="Voltage & Current",
+                xaxis_title="Time (s)",
+                height=300,
+                margin=dict(l=50, r=50, t=50, b=50)
+            )
+            fig1.update_yaxes(title_text="Voltage (V)", secondary_y=False)
+            fig1.update_yaxes(title_text="Current (A)", secondary_y=True)
+
+            # Speed/Power chart
+            fig2 = make_subplots(specs=[[{"secondary_y": True}]])
+            fig2.add_trace(
+                go.Scatter(x=times, y=speeds, name="Speed", line=dict(color="green")),
+                secondary_y=False
+            )
+            fig2.add_trace(
+                go.Scatter(x=times, y=powers, name="Power", line=dict(color="orange")),
+                secondary_y=True
+            )
+            fig2.update_layout(
+                title="Speed & Power",
+                xaxis_title="Time (s)",
+                height=300,
+                margin=dict(l=50, r=50, t=50, b=50)
+            )
+            fig2.update_yaxes(title_text="Speed (m/s)", secondary_y=False)
+            fig2.update_yaxes(title_text="Power (W)", secondary_y=True)
+        else:
+            fig1 = None
+            fig2 = None
+
+        # Format display values
+        voltage_str = f"{point.battery_voltage:.2f} V"
+        current_str = f"{point.motor_current:.2f} A"
+        speed_str = f"{point.speed_gps:.2f} m/s"
+        power_str = f"{point.power_in:.1f} W" if point.power_in else "---"
+        temp_str = f"{point.temp_fet:.1f}C" if point.temp_fet else "---"
+        gps_str = point.gps_position[:15] if point.gps_position else "---"
+
+        return voltage_str, current_str, speed_str, power_str, temp_str, gps_str, fig1, fig2
+
+    except Exception as e:
+        return f"Error: {e}", "---", "---", "---", "---", "---", None, None
+
+
+def run_system_identification():
+    """Run system identification on collected data."""
+    global live_collector
+
+    if not live_collector or not live_collector.telemetry_data:
+        return "No telemetry data available. Record some data first!", None
+
+    if not SYSTEM_ID_AVAILABLE:
+        return "System identification module not available", None
+
+    try:
+        identifier = SystemIdentifier()
+        identifier.load_telemetry(live_collector.telemetry_data)
+        params = identifier.identify_all()
+
+        # Format results
+        html = f"""
+        <div style="font-family: monospace; padding: 20px;">
+            <h2>Identified Boat Parameters</h2>
+            <table style="border-collapse: collapse; width: 100%; margin: 20px 0;">
+                <tr style="background-color: #4CAF50; color: white;">
+                    <th style="padding: 10px; border: 1px solid #ddd;">Parameter</th>
+                    <th style="padding: 10px; border: 1px solid #ddd;">Value</th>
+                    <th style="padding: 10px; border: 1px solid #ddd;">Quality</th>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;">Effective Mass</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{params.mass:.1f} kg</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{params.estimation_quality.get('mass', 0):.2f}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;">Drag Coefficient</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{params.drag_coefficient:.3f}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{params.estimation_quality.get('drag_coefficient', 0):.2f}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;">Motor Efficiency</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{params.motor_efficiency:.1%}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{params.estimation_quality.get('efficiency', 0):.2f}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;">Propeller Efficiency</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{params.propeller_efficiency:.1%}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">-</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;">Battery Internal Resistance</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{params.battery_internal_resistance:.3f} Ohm</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{params.estimation_quality.get('battery_resistance', 0):.2f}</td>
+                </tr>
+            </table>
+            <p><em>Quality scores range from 0 (poor) to 1 (excellent)</em></p>
+            <p><strong>Estimated:</strong> {params.estimation_date}</p>
+        </div>
+        """
+
+        # Save params
+        params.save("identified_params.json")
+
+        return html, "Parameters saved to identified_params.json"
+
+    except Exception as e:
+        import traceback
+        return f"Error: {str(e)}\n{traceback.format_exc()}", None
+
+
+# ============================================================================
 # BUILD GRADIO INTERFACE
 # ============================================================================
 
@@ -550,6 +871,158 @@ with gr.Blocks(
     """)
 
     with gr.Tabs():
+
+        # ====================================================================
+        # TAB 0: LIVE TELEMETRY (Hardware Integration)
+        # ====================================================================
+        with gr.Tab("🔴 Live Telemetry"):
+            gr.Markdown("## Real-Time Hardware Integration")
+            gr.Markdown("""
+            Connect to VESC motor controller and GPS for live telemetry.
+            Use **Simulation Mode** for testing without hardware.
+            """)
+
+            with gr.Row():
+                with gr.Column(scale=1):
+                    gr.Markdown("### Connection Setup")
+
+                    use_sim = gr.Checkbox(
+                        label="Simulation Mode (no hardware required)",
+                        value=True
+                    )
+
+                    vesc_port = gr.Dropdown(
+                        choices=get_available_ports(),
+                        value=get_available_ports()[0] if get_available_ports() else None,
+                        label="VESC Serial Port",
+                        allow_custom_value=True
+                    )
+
+                    gps_port = gr.Dropdown(
+                        choices=["None"] + get_gps_ports(),
+                        value="None",
+                        label="GPS Serial Port (optional)",
+                        allow_custom_value=True
+                    )
+
+                    with gr.Row():
+                        connect_btn = gr.Button("Connect", variant="primary")
+                        disconnect_btn = gr.Button("Disconnect", variant="secondary")
+
+                    connection_status = gr.Textbox(
+                        label="Connection Status",
+                        value="Disconnected",
+                        interactive=False
+                    )
+
+                with gr.Column(scale=1):
+                    gr.Markdown("### Recording Controls")
+
+                    session_name = gr.Textbox(
+                        label="Session Name (optional)",
+                        placeholder="race_001"
+                    )
+
+                    location = gr.Textbox(
+                        label="Location",
+                        placeholder="Lake Merced, SF"
+                    )
+
+                    conditions = gr.Textbox(
+                        label="Conditions",
+                        placeholder="Sunny, light wind, calm water"
+                    )
+
+                    with gr.Row():
+                        start_rec_btn = gr.Button("Start Recording", variant="primary")
+                        stop_rec_btn = gr.Button("Stop Recording", variant="stop")
+
+                    recording_status = gr.Textbox(
+                        label="Recording Status",
+                        value="Stopped",
+                        interactive=False
+                    )
+
+            gr.Markdown("### Live Readings")
+
+            with gr.Row():
+                voltage_display = gr.Textbox(label="Voltage", value="---", interactive=False)
+                current_display = gr.Textbox(label="Current", value="---", interactive=False)
+                speed_display = gr.Textbox(label="Speed", value="---", interactive=False)
+                power_display = gr.Textbox(label="Power", value="---", interactive=False)
+                temp_display = gr.Textbox(label="FET Temp", value="---", interactive=False)
+                gps_display = gr.Textbox(label="GPS", value="---", interactive=False)
+
+            refresh_btn = gr.Button("Refresh Reading", variant="secondary")
+
+            with gr.Row():
+                live_chart_1 = gr.Plot(label="Voltage & Current")
+                live_chart_2 = gr.Plot(label="Speed & Power")
+
+            gr.Markdown("### Session Management")
+
+            with gr.Row():
+                with gr.Column():
+                    save_filename = gr.Textbox(
+                        label="Save Filename",
+                        placeholder="session_001.json"
+                    )
+                    save_btn = gr.Button("Save Session")
+                    save_status = gr.Textbox(label="Save Status", interactive=False)
+
+                with gr.Column():
+                    recording_summary = gr.Markdown()
+
+            gr.Markdown("### System Identification")
+            gr.Markdown("""
+            After collecting telemetry data (especially with varying motor loads and coasting periods),
+            run System ID to estimate your boat's physical parameters.
+            """)
+
+            run_sysid_btn = gr.Button("Run System Identification", variant="primary")
+            sysid_output = gr.HTML()
+            sysid_status = gr.Textbox(label="Status", interactive=False)
+
+            # Connect button handlers
+            connect_btn.click(
+                fn=connect_hardware,
+                inputs=[vesc_port, gps_port, use_sim],
+                outputs=[connection_status, connection_status]
+            )
+
+            disconnect_btn.click(
+                fn=disconnect_hardware,
+                outputs=[connection_status, connection_status]
+            )
+
+            start_rec_btn.click(
+                fn=start_recording,
+                inputs=[session_name, location, conditions],
+                outputs=[recording_status, recording_status]
+            )
+
+            stop_rec_btn.click(
+                fn=stop_recording,
+                outputs=[recording_status, recording_status, recording_summary]
+            )
+
+            refresh_btn.click(
+                fn=get_live_telemetry,
+                outputs=[voltage_display, current_display, speed_display,
+                        power_display, temp_display, gps_display,
+                        live_chart_1, live_chart_2]
+            )
+
+            save_btn.click(
+                fn=save_session,
+                inputs=[save_filename],
+                outputs=[save_status]
+            )
+
+            run_sysid_btn.click(
+                fn=run_system_identification,
+                outputs=[sysid_output, sysid_status]
+            )
 
         # ====================================================================
         # TAB 1: VESC DATA COLLECTION
