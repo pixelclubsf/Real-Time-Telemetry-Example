@@ -345,7 +345,7 @@ Solar Regatta
 ## Requirements
 
 - Python 3.8 or higher
-- Gradio 4.0.0+ (for interactive model parameter inspector)
+- Gradio 5.0.0+ (for interactive model parameter inspector)
 - Plotly 5.17.0
 - Matplotlib 3.8.0
 - NumPy 1.24.3
