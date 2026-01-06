@@ -1,4 +1,4 @@
-# Changelog - World Model Addition
+# Changelog
 
 ## Version 0.2.0 - World Model Release (2025-11-20)
 
@@ -76,18 +76,6 @@ Comprehensive technical documentation covering:
 - Validation methodology
 - Future enhancements
 
-#### `WORLD_MODEL_SUMMARY.md`
-Implementation summary including:
-- What was built
-- Core components
-- Capabilities
-- Technical achievements
-- Use cases
-- Performance benchmarks
-- Comparison to previous models
-
-#### `CHANGELOG_WORLD_MODEL.md`
-This file - complete changelog of additions
 
 ### New Examples
 

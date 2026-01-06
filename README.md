@@ -313,25 +313,33 @@ See [WORLD_MODEL.md](WORLD_MODEL.md) for complete documentation and [examples/wo
 ```
 Solar Regatta
 ├── Core analysis (solar_regatta/core)
-│   ├── GPS distance calculations
+│   ├── GPS distance calculations (MGRS)
 │   ├── Speed computations
 │   ├── Performance metrics
 │   └── Matplotlib visualizations
 ├── ML utilities (solar_regatta/ml)
-│   ├── Feature preparation
-│   ├── Linear regression helpers
-│   ├── World Model (physics-based simulation) ⭐ NEW
+│   ├── Linear regression & tree models
+│   ├── Feature engineering (rolling stats, lags)
+│   ├── World Model (physics-based simulation)
 │   │   ├── Boat dynamics modeling
 │   │   ├── Trajectory prediction
 │   │   ├── Uncertainty quantification
 │   │   └── Control optimization
-│   └── Evaluation helpers
-├── Plotly visuals (solar_regatta/viz)
-│   ├── Notebook-friendly chart builders
-│   └── World model visualizations ⭐ NEW
-└── Notebooks & CLI
+│   ├── System identification
+│   ├── Anomaly detection
+│   └── Evaluation & cross-validation
+├── Visualizations (solar_regatta/viz)
+│   ├── Plotly interactive charts
+│   ├── World model trajectory plots
+│   └── 3D visualizations
+├── VESC Integration (solar_regatta/vesc)
+│   ├── Serial protocol parsing
+│   ├── GPS coordinate handling
+│   └── Real-time data collection
+└── Apps & CLI
+    ├── Gradio web dashboard (app.py)
     ├── Example notebooks in /notebooks
-    └── `solar-regatta` command for quick experiments
+    └── `solar-regatta` CLI tool
 ```
 
 ## Requirements
@@ -368,26 +376,48 @@ pip install -e .
 ```
 SolarRegatta/
 ├── README.md
+├── CHANGELOG.md                    # Version history
+├── WORLD_MODEL.md                  # Physics model documentation
 ├── requirements.txt
 ├── setup.py
 ├── pyproject.toml
+├── app.py                          # Gradio web dashboard
 ├── example_vesc_plot.py            # Matplotlib example
 ├── solar.py                        # Stand-alone analysis script
 ├── notebooks/                      # Interactive Jupyter workflows
 │   ├── Solar_Regatta_Quickstart.ipynb
-│   ├── Solar_Regatta_Plotly_Dashboard.ipynb
-│   └── Model_Parameter_Inspector.ipynb  # Gradio-based parameter inspector
+│   └── Solar_Regatta_Plotly_Dashboard.ipynb
+├── examples/                       # Demo scripts
+│   ├── world_model_demo.py
+│   └── world_model_quickstart.py
 ├── solar_regatta/                  # Installable package
 │   ├── __init__.py
 │   ├── cli.py                      # Command-line entry point
-│   ├── gradio_app.py               # Gradio model inspector app
 │   ├── core/
-│   │   └── analysis.py
+│   │   └── analysis.py             # GPS, speed, performance metrics
 │   ├── ml/
-│   │   └── models.py
-│   └── viz/
-│       └── plotly_charts.py
-└── docs/                           # Documentation and assets
+│   │   ├── models.py               # Linear regression
+│   │   ├── features.py             # Feature engineering
+│   │   ├── tree_models.py          # RandomForest, XGBoost, LightGBM
+│   │   ├── world_model.py          # Physics-based simulation
+│   │   ├── system_id.py            # Parameter estimation
+│   │   ├── evaluation.py           # Cross-validation
+│   │   └── anomaly.py              # Anomaly detection
+│   ├── viz/
+│   │   ├── plotly_charts.py        # Interactive charts
+│   │   ├── world_model_viz.py      # Trajectory visualization
+│   │   └── viz_3d.py               # 3D visualizations
+│   ├── vesc/                       # VESC motor controller
+│   │   ├── protocol.py
+│   │   ├── gps.py
+│   │   └── collector.py
+│   └── environment/                # Weather/environmental physics
+│       └── weather.py
+└── tests/                          # Test suite
+    ├── conftest.py
+    ├── test_core.py
+    ├── test_world_model.py
+    └── test_features.py
 ```
 
 ## Usage Examples
@@ -470,9 +500,9 @@ For issues, questions, or suggestions:
 
 ## Project Status
 
-**Version:** 0.1.0 (Alpha)
+**Version:** 0.2.0
 **Status:** Active Development
-**Last Updated:** October 2025
+**Last Updated:** January 2026
 
 ## Authors
 

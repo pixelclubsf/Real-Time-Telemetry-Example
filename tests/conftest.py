@@ -61,31 +61,6 @@ def sample_trajectory(sample_boat_state, world_model):
 
 
 @pytest.fixture
-def mpc_controller(world_model):
-    """Create MPC controller for testing."""
-    from solar_regatta.ml.mpc_controller import ModelPredictiveController, MPCConfig
-
-    config = MPCConfig(
-        prediction_horizon=10,
-        control_horizon=5,
-        max_iterations=50
-    )
-    return ModelPredictiveController(world_model, config)
-
-
-@pytest.fixture
-def rl_environment():
-    """Create RL environment for testing."""
-    from solar_regatta.ml.rl_agent import SolarBoatRacingEnv, RaceConfig
-
-    config = RaceConfig(
-        race_distance=500.0,
-        max_race_time=300.0
-    )
-    return SolarBoatRacingEnv(config=config)
-
-
-@pytest.fixture
 def environment_simulator():
     """Create environment simulator for testing."""
     from solar_regatta.environment import create_default_environment
@@ -93,13 +68,3 @@ def environment_simulator():
     return create_default_environment()
 
 
-@pytest.fixture
-def temp_database(tmp_path):
-    """Create temporary database for testing."""
-    from solar_regatta.streaming.database import TelemetryDatabase, DatabaseConfig
-
-    db_path = str(tmp_path / "test_telemetry.db")
-    config = DatabaseConfig(db_path=db_path)
-    db = TelemetryDatabase(config)
-    yield db
-    db.close()
